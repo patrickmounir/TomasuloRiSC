@@ -129,4 +129,27 @@ public class Assembler {
 		}
 		
 	}
+	public static void main(String[] args) {
+		Assembler assembler = new Assembler();
+		try {
+			ArrayList<Short> result = assembler.parse("test.asm");
+			for(int i = 0;i<result.size();i++){
+				Short line = result.get(i);
+				System.out.println(line);
+				String binary =Integer.toBinaryString(line);
+				if(binary.length()>16){
+					binary =binary.substring(binary.length()-16);
+				}else{
+					while(binary.length()<16){
+						binary="0"+binary;
+					}
+				}
+				System.out.println(binary);
+			}
+		} catch (IOException | AssemblyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
 }
