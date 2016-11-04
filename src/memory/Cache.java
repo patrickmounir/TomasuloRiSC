@@ -12,7 +12,7 @@ public class Cache implements Accessible{
 	private CacheEntry [] lines;
 	private short blockSize;
 	
-	public Cache(int size, short blockSize, int associativity, boolean writePolicy, int cycleAccesTime, Accessible lowerLevel) {
+	public Cache(int size, short blockSize, int associativity, boolean writePolicy, int cycleAccessTime, Accessible lowerLevel) {
 		this.size = size;
 		this.blockSize = blockSize;
 		this.associativity = associativity;
