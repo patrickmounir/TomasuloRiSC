@@ -3,21 +3,15 @@ package memory;
 import java.util.Arrays;
 import java.util.Random;
 
-public class Cache implements Accessible{
+public class Cache extends Memory{
 
-	private int size, workCycles, associativity;
-	private boolean writePolicy; // true : through, false : back
-	private int hits, misses, cycleAccessTime;
-	protected Accessible lowerLevel;
+	private int associativity;
+	private int hits, misses;
+	protected Memory lowerLevel;
 	private CacheEntry [] lines;
-	private short blockSize;
 	
-	public Cache(int size, short blockSize, int associativity, boolean writePolicy, int cycleAccessTime, Accessible lowerLevel) {
-		this.size = size;
-		this.blockSize = blockSize;
-		this.associativity = associativity;
-		this.writePolicy = writePolicy;
-		this.cycleAccessTime = cycleAccessTime;
+	public Cache(int size, short blockSize, int associativity, boolean writePolicy, int cycleAccessTime, Memory lowerLevel) {
+		super(size, cycleAccessTime, writePolicy, blockSize);
 		this.lowerLevel = lowerLevel;
 		this.lines = new CacheEntry[size/blockSize];
 		for(int i=0;i<this.lines.length;i++)
@@ -41,7 +35,6 @@ public class Cache implements Accessible{
 		}
 	}
 
-	@Override
 	public Object read(short address, boolean firstLevel) {
 		workCycles += cycleAccessTime; //since every Time we read (either miss or hit) , we increase the workCycles
 		short[] result;
@@ -161,12 +154,30 @@ public class Cache implements Accessible{
 		return lines[index].data;
 	}
 
-	@Override
 	public void write(short address, Object data, boolean firstLevel) {
+		workCycles += cycleAccessTime; //since every Time we write (either miss or hit) , we increase the workCycles
+		if(associativity == 1)
+			directMappedWrite(address, data);  // associativity = 1  --> Direct Mapped
+		else if(associativity == (size / blockSize))
+			fullyAssociativeWrite(address, data); // associativity = C --> Fully Associative
+		else setAssociativeWrite(address, data); // Otherwise --> Set Associative (We assume CPU handles errors .. e.g :- associativity > C)	
+	}
+	
+	private void setAssociativeWrite(short address, Object data) {
 		// TODO Auto-generated method stub
 		
 	}
-	
+
+	private void fullyAssociativeWrite(short address, Object data) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void directMappedWrite(short address, Object data) {
+		// TODO Auto-generated method stub
+		
+	}
+
 	public static void main(String[] args) {
 		Cache l1 = new Cache((short)1024, (short)256, 1, true, (short)2, null);
 		CacheEntry entry1 = new CacheEntry((short) 5, new short[]{1, 2, 3});
