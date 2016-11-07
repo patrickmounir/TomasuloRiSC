@@ -156,11 +156,15 @@ public class Cache extends Memory{
 
 	public void write(short address, Object data, boolean firstLevel) {
 		workCycles += cycleAccessTime; //since every Time we write (either miss or hit) , we increase the workCycles
+		if(!writePolicy)	//allocate
+			read(address, false);
+		
 		if(associativity == 1)
 			directMappedWrite(address, data);  // associativity = 1  --> Direct Mapped
 		else if(associativity == (size / blockSize))
 			fullyAssociativeWrite(address, data); // associativity = C --> Fully Associative
-		else setAssociativeWrite(address, data); // Otherwise --> Set Associative (We assume CPU handles errors .. e.g :- associativity > C)	
+		else setAssociativeWrite(address, data); // Otherwise --> Set Associative (We assume CPU handles errors .. e.g :- associativity > C)
+			
 	}
 	
 	private void setAssociativeWrite(short address, Object data) {
@@ -174,8 +178,17 @@ public class Cache extends Memory{
 	}
 
 	private void directMappedWrite(short address, Object data) {
-		// TODO Auto-generated method stub
+		short addressCopy = address;
+		address=(short) (address/blockSize);
+		short noLines = (short) (size / blockSize);
+		int index = address % noLines;
+		int tag = address / noLines;
 		
+		CacheEntry entry = lines[index];
+		if(entry.valid && entry.tag == tag){
+			hits++;
+			this.lowerLevel.write(addressCopy, data, false);
+		}
 	}
 
 	public static void main(String[] args) {
