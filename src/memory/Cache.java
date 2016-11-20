@@ -24,7 +24,6 @@ public class Cache extends Memory{
 		private short tag;
 		private short [] data;
 		
-		@SuppressWarnings("unused")
 		public CacheEntry(short tag, short [] data) {
 			this.tag = tag;
 			this.data = data;
@@ -68,14 +67,14 @@ public class Cache extends Memory{
 			}
 				
 			if(lines[i].valid && lines[i].tag == tag){
-				hits++;
+				setHits(getHits() + 1);
 				return lines[i].data;
 			}
 		}
 			
 				
-		misses++;
-		
+		setMisses(getMisses() + 1);
+		index = emptySpaceIndex;
 		if(emptySpaceIndex == -1){
 			Random rand = new Random(); //if we found no empty space , pick a random entry to remove within the set
 			int replacedIndex = start + rand.nextInt(associativity); // we add {start} to ensure its within our set
@@ -103,11 +102,11 @@ public class Cache extends Memory{
 				found =true;
 			}
 			if(lines[i].valid && lines[i].tag == tag){
-				hits++;
+				setHits(getHits() + 1);
 				return lines[i].data;
 			}
 		}
-		misses++;
+		setMisses(getMisses() + 1);
 		
 		int index = emptySpaceIndex;
 		
@@ -137,11 +136,11 @@ public class Cache extends Memory{
 		
 		CacheEntry entry = lines[index];
 		if(entry.valid && entry.tag == tag){
-			hits++;
+			setHits(getHits() + 1);
 			return entry.data;
 		}
 			
-		misses++;
+		setMisses(getMisses() + 1);
 		
 		if(!writePolicy && entry.valid && entry.dirty){
 			short constuctedAddress = (short) ((entry.tag * noLines +index ) * blockSize); //different way of constructing the address
@@ -156,38 +155,135 @@ public class Cache extends Memory{
 
 	public void write(short address, Object data, boolean firstLevel) {
 		workCycles += cycleAccessTime; //since every Time we write (either miss or hit) , we increase the workCycles
-		if(!writePolicy)	//allocate
+		if(!writePolicy)	//allocate--back
 			read(address, false);
 		
 		if(associativity == 1)
-			directMappedWrite(address, data);  // associativity = 1  --> Direct Mapped
+			directMappedWrite(address, data, firstLevel);  // associativity = 1  --> Direct Mapped
 		else if(associativity == (size / blockSize))
-			fullyAssociativeWrite(address, data); // associativity = C --> Fully Associative
-		else setAssociativeWrite(address, data); // Otherwise --> Set Associative (We assume CPU handles errors .. e.g :- associativity > C)
+			fullyAssociativeWrite(address, data, firstLevel); // associativity = C --> Fully Associative
+		else setAssociativeWrite(address, data, firstLevel); // Otherwise --> Set Associative (We assume CPU handles errors .. e.g :- associativity > C)
 			
 	}
 	
-	private void setAssociativeWrite(short address, Object data) {
-		// TODO Auto-generated method stub
+	private void setAssociativeWrite(short address, Object data, boolean firstLevel) {
+		short addressCopy = address; //make a copy of address , because the original one will be manipulated
+		short offset = (short)(address%blockSize);
+		address=(short) (address/blockSize); //getting rid of offset
+		short noLines = (short) (size / blockSize);  //calculating number of lines
+		short noSets = (short)(noLines / associativity); // calculating number of sets
+		int index = address % noSets;
+		int tag = address / noSets;
 		
+		int start = index * associativity; //in order to reach the first entry in our desired set , we should skip sets from 0 to index-1  , those have a count of {index} , each with {associativity} entries , so we skip {index*associativity} entries
+		int i;
+		for(i=start;i<start + associativity;i++){
+			
+			if(lines[i].valid && lines[i].tag == tag){
+				if(!firstLevel){
+					lines[i].data = (short []) data;
+					if(!writePolicy) {	// back
+						lines[i].dirty = true;
+						lines[i].valid = true;
+						return;
+					}
+					else break;
+				}
+				
+				if(!writePolicy){ // allocate - back
+					lines[i].data[offset] = (Short) data;
+					lines[i].dirty = true;
+					lines[i].valid = true;
+					return;
+				}
+				else {
+					lines[i].data[offset] = (Short) data;
+					lines[i].valid = true;
+					setHits(getHits() + 1);
+					break;
+				}
+			}
+		}
+		if(i == (start + associativity))
+			setMisses(getMisses() + 1);
+		this.lowerLevel.write(addressCopy, data, firstLevel);
 	}
 
-	private void fullyAssociativeWrite(short address, Object data) {
-		// TODO Auto-generated method stub
-		
+	private void fullyAssociativeWrite(short address, Object data, boolean firstLevel) {
+		short tag = (short) (address/blockSize);
+		short offset = (short) (address % blockSize);
+		int i;
+		for(i=0;i<lines.length;i++){   // search the entire cache instead of just the set
+			if(lines[i].valid && lines[i].tag == tag){
+				
+				if(!firstLevel){
+					lines[i].data = (short []) data;
+					if(!writePolicy) {	// back
+						lines[i].dirty = true;
+						lines[i].valid = true;
+						return;
+					}
+					else break;
+				}
+				
+				if(!writePolicy){ // allocate - back
+					lines[i].data[offset] = (Short) data;
+					lines[i].dirty = true;
+					lines[i].valid = true;
+					return;
+				}
+				else {
+					lines[i].data[offset] = (Short) data;
+					lines[i].valid = true;
+					setHits(getHits() + 1);
+					break;
+				}
+				
+			}
+		}
+		if(i == lines.length)
+			setMisses(getMisses() + 1);
+		this.lowerLevel.write(address, data, firstLevel);
 	}
 
-	private void directMappedWrite(short address, Object data) {
+	private void directMappedWrite(short address, Object data, boolean firstLevel) {
+		
 		short addressCopy = address;
+		short offset = (short) (address % blockSize);
 		address=(short) (address/blockSize);
 		short noLines = (short) (size / blockSize);
 		int index = address % noLines;
 		int tag = address / noLines;
 		
 		CacheEntry entry = lines[index];
-		if(entry.valid && entry.tag == tag){
-			hits++;
-			this.lowerLevel.write(addressCopy, data, false);
+		
+		if(!firstLevel){
+			entry.data = (short []) data;
+			if(!writePolicy) {	// back
+				entry.dirty = true;
+				entry.valid = true;
+				return;
+			}
+			this.lowerLevel.write(addressCopy, (short [])data, false);
+			return;
+		}
+		
+		if(!writePolicy){ // allocate - back
+			if(entry.valid && entry.tag == tag){
+				entry.data[offset] = (Short) data;
+				entry.dirty = true;
+				entry.valid = true;
+			}
+		}
+		else { //through - around
+			if(entry.valid && entry.tag == tag){
+				entry.data[offset] = (Short) data;
+				entry.valid = true;
+				setHits(getHits() + 1);
+			}
+			else setMisses(getMisses() + 1);
+			
+			this.lowerLevel.write(addressCopy, (Short)data, true);
 		}
 	}
 
@@ -197,6 +293,22 @@ public class Cache extends Memory{
 		l1.lines[0] = entry1;
 		System.out.println(Arrays.toString(l1.lines));
 
+	}
+
+	public int getHits() {
+		return hits;
+	}
+
+	public void setHits(int hits) {
+		this.hits = hits;
+	}
+
+	public int getMisses() {
+		return misses;
+	}
+
+	public void setMisses(int misses) {
+		this.misses = misses;
 	}
 	
 	

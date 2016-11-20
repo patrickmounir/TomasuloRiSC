@@ -1,7 +1,9 @@
 package simulator;
 
+
 import java.io.File;
 import java.util.Scanner;
+
 
 public class Simulator {
 	
@@ -115,4 +117,5 @@ public class Simulator {
 		
 	}
 
+	
 }
