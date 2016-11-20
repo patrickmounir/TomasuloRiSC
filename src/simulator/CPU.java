@@ -171,7 +171,6 @@ public class CPU {
 	
 	public void simulate() {
 		
-		@SuppressWarnings("unused")
 		int cycles = 0;
 		
 		while(true) {
@@ -203,8 +202,12 @@ public class CPU {
 			
 			//Will we issue in this cycle ?
 			boolean issue = false;
-			for(int i=0; i<reservationStation[instructionBuffer.peek()[0]].length; i++) 
-				issue |= !(reservationStation[instructionBuffer.peek()[0]][i].busy);
+			int issuePos;
+			for(issuePos = 0; issuePos<reservationStation[instructionBuffer.peek()[0]].length; issuePos++) {
+				issue |= !(reservationStation[instructionBuffer.peek()[0]][issuePos].busy);
+				if(issue) break;
+			}
+				
 			issue &= !ROB.isFull();
 			
 			boolean [][] execute = new boolean [6][];
@@ -229,11 +232,40 @@ public class CPU {
 					}		
 				}
 			}
+			//commit stage
+			if(!ROB.isEmpty()) {
+				ROB.remove();
+				// TODO: Write in reg file & if misprediction rollback
+			}
+			//Write stage
+			if(reservationStation[minSoFarStation][minSoFarPosition].busy&&reservationStation[minSoFarStation][minSoFarPosition].cyclesRemToWrite==0) {
+				// TODO: set values in ROB (actual operation eg: addition), set it to ready, 
+			}
+			//execution stage
+			for(int i = 0;i<6;i++) {
+				for(int j = 0;j<reservationStation[i].length;j++) {
+					if(execute[i][j]) {
+						reservationStation[i][j].cyclesRemToWrite--;
+					}
+				}
+			}
+			//issue stage
+			if(issue) {
+				int[] instructionIssued = instructionBuffer.poll();
+				reservationStation[instructionIssued[0]][issuePos].busy=true;
+				reservationStation[instructionIssued[0]][issuePos].op=Instruction.values()[instructionIssued[1]].toString();
+				reservationStation[instructionIssued[0]][issuePos].cyclesRemToWrite = reservationStationLatencies[instructionIssued[0]];
+				
+				// TODO: complete rest of table each one according to the instruction.
+			}
 			
 			
-			
+			cycles++;
+			if(instructionBuffer.peek() == null && ROB.isEmpty()) break;
 		}
 		
+		// TODO: Analyse report & statistics.
+		System.out.println(cycles);
 	}
 	
 	public static void main(String[] args) {
