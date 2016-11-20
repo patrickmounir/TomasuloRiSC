@@ -188,7 +188,7 @@ public class Simulator {
 		System.arraycopy(sim.reservationStationCycles, 0, cpuVarArgs, 6, 6);
 		
 		CPU cpu = new CPU(L1Instruction, L1Data, cpuVarArgs);
-		cpu.init(sim.pipelineWidth, sim.instructionBufferSize, sim.startAddress);
+		cpu.init(sim.pipelineWidth, sim.instructionBufferSize, sim.startAddress, sim.ROBSize);
 		
 				
 		// TODO: start simulation

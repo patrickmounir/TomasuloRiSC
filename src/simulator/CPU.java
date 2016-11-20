@@ -21,6 +21,7 @@ public class CPU {
 	java.util.Queue<int[]> instructionBuffer;
 	int [] regFile = new int[8];
 	int [] regTable = new int[8];
+	Queue ROB;
 	RSEntry [][] reservationStation = new RSEntry[6][];
 	int[] reservationStationLatencies = new int[6];
 	Cache instructionCache;
@@ -151,7 +152,7 @@ public class CPU {
 		
 	}
 	
-	public void init(int pipelineWidth, int instructionBufferSize, short startAddress) {
+	public void init(int pipelineWidth, int instructionBufferSize, short startAddress, int robSize) {
 		this.pipelineWidth = pipelineWidth;
 		this.instructionBufferSize = instructionBufferSize;
 		this.PC = startAddress;
@@ -164,6 +165,8 @@ public class CPU {
 						"", -1, -1, -1, -1, -1, -1, -1, reservationStationLatencies[i], -1);
 			}
 		}
+		
+		ROB = new Queue(robSize);
 	}
 	
 	public void simulate() {
@@ -197,7 +200,36 @@ public class CPU {
 			}
 			
 			// BACK END
-			//boolean issue = 
+			
+			//Will we issue in this cycle ?
+			boolean issue = false;
+			for(int i=0; i<reservationStation[instructionBuffer.peek()[0]].length; i++) 
+				issue |= !(reservationStation[instructionBuffer.peek()[0]][i].busy);
+			issue &= !ROB.isFull();
+			
+			boolean [][] execute = new boolean [6][];
+			for(int i = 0;i<6;i++) {
+				for(int j = 0;j<reservationStation[i].length;j++) {
+					execute[i][j]=(reservationStation[i][j].busy&&
+							(reservationStation[i][j].Qj==-1)&&
+							(reservationStation[i][j].Qk==-1)&&
+							(reservationStation[i][j].cyclesRemToWrite!=0));
+				}
+			}
+			int minSoFarStation=0,minSoFarPosition=0;
+			for(int i = 0;i<6;i++) {
+				for(int j = 0;j<reservationStation[i].length;j++) {
+					if(reservationStation[i][j].busy) {
+						if(!reservationStation[minSoFarStation][minSoFarPosition].busy||
+								((reservationStation[i][j].cyclesRemToWrite==0)&&
+								(reservationStation[i][j].instrcutionIndex<reservationStation[minSoFarStation][minSoFarPosition].instrcutionIndex))) {
+							minSoFarStation=i;
+							minSoFarPosition=j;
+						}	
+					}		
+				}
+			}
+			
 			
 			
 		}
