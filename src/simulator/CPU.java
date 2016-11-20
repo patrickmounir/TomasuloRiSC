@@ -8,7 +8,7 @@ import memory.Cache;
 public class CPU {
 	
 	static enum functionalUnit{
-		LOAD, STROE, LOGICAL, ADD,MUL,BRANCH
+		MULT, LOGICAL, ADD, BRANCH, LOAD, STORE
 	}
 	static enum Instruction{
 		LW,SW,JMP,BEQ,JALR,RET,ADD,ADDI,SUB,NAND,MUL
@@ -25,7 +25,8 @@ public class CPU {
 	int[] reservationStationLatencies = new int[6];
 	Cache instructionCache;
 	Cache dataCache;
-	int PC;
+	short PC;
+	short oldPC;
 	
 	public CPU(Cache instructionCache, Cache dataCache,int ...unitsNo) {
 		this.instructionCache=instructionCache;
@@ -62,7 +63,7 @@ public class CPU {
 			case 2:decoded[0] = functionalUnit.LOGICAL.ordinal();
 		       decoded[1] =Instruction.NAND.ordinal() ;
 		       break;
-			case 3:decoded[0] = functionalUnit.MUL.ordinal();
+			case 3:decoded[0] = functionalUnit.MULT.ordinal();
 		       decoded[1] =Instruction.MUL.ordinal() ;
 		       break;
 				
@@ -76,7 +77,7 @@ public class CPU {
 				decoded[4] = (instruction&(127));break;
 			case 1:
 				decoded = new int [5];
-				decoded[0]=functionalUnit.STROE.ordinal();
+				decoded[0]=functionalUnit.STORE.ordinal();
 				decoded[1] =Instruction.SW.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
 				decoded[3] =(instruction&(7<<7))>>7;
@@ -126,8 +127,10 @@ public class CPU {
 		String op;
 		int Vj, Vk, Qj, Qk, Dest, A, cyclesRemToWrite;
 		int instrcutionIndex;
+		int latency;
 
-		public RSEntry(String name, String op, int vj, int vk, int qj, int qk, int dest, int a,int cyclesRemToWrite,int instructionIndex) {
+		public RSEntry(String name, String op, int vj, int vk, int qj, int qk, int dest, int a,
+						int cyclesRemToWrite, int latency, int instructionIndex) {
 			this.name = name;
 			this.op = op;
 			Vj = vj;
@@ -136,9 +139,11 @@ public class CPU {
 			Qk = qk;
 			Dest = dest;
 			A = a;
+			this.latency = latency;
 			this.cyclesRemToWrite = cyclesRemToWrite;
 			this.instrcutionIndex=instructionIndex;
-			busy=true;
+			busy=false;
+			
 		}
 		public String toString(){
 			return "<" + name + ", " + busy + ", " + op + ", " + Vj + ", " + Vk + ", " + Qj + ", " + Qk + ", " + Dest + ", " + A + ", " + cyclesRemToWrite + ">";
@@ -146,19 +151,53 @@ public class CPU {
 		
 	}
 	
-	public void init(int pipelineWidth, int instructionBufferSize, int startAddress) {
+	public void init(int pipelineWidth, int instructionBufferSize, short startAddress) {
 		this.pipelineWidth = pipelineWidth;
 		this.instructionBufferSize = instructionBufferSize;
 		this.PC = startAddress;
 		instructionBuffer = new LinkedList<int[]>();
+		
+		functionalUnit[] functionalUnitNames = functionalUnit.values();
+		for(int i=0; i<6; i++) {
+			for(int j=0; j<reservationStation[i].length; j++) {
+				reservationStation[i][j] = new RSEntry(functionalUnitNames[i]+""+(j+1), 
+						"", -1, -1, -1, -1, -1, -1, -1, reservationStationLatencies[i], -1);
+			}
+		}
 	}
 	
 	public void simulate() {
 		
+		@SuppressWarnings("unused")
 		int cycles = 0;
 		
 		while(true) {
 			
+			// FRONT END
+			if((instructionBufferSize-instructionBuffer.size()) >= pipelineWidth) {
+				for(int i=0; i<pipelineWidth; i++) {
+					short fetchedInstruction = (short) instructionCache.read(PC, true);
+					int[] decodedInstruction = this.decode(fetchedInstruction);
+					instructionBuffer.offer(decodedInstruction);
+					
+					PC++;
+					
+					if(decodedInstruction[1]==Instruction.JMP.ordinal()) {
+						PC = (short)(regFile[decodedInstruction[2]]);
+						PC += decodedInstruction[3];
+					} else if(decodedInstruction[1]==Instruction.JALR.ordinal()) {
+						PC = (short) decodedInstruction[3];
+					} else if(decodedInstruction[1]==Instruction.RET.ordinal()) {
+						PC = (short) decodedInstruction[2];
+					} else if(decodedInstruction[1]==Instruction.BEQ.ordinal()) {
+						oldPC = PC;
+						PC += (decodedInstruction[4]<0)?((short) decodedInstruction[4]):0;
+					}
+				}
+			}
+			
+			// BACK END
+			//boolean issue = 
 			
 			
 		}
