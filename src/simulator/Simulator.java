@@ -1,5 +1,6 @@
 package simulator;
 
+import java.io.File;
 import java.util.Scanner;
 
 public class Simulator {
@@ -10,8 +11,8 @@ public class Simulator {
 		class cacheDetails {
 			int size;						// Cache Size in Words.
 			int blockSize;					// Size for one Block in Words.
-			int associativityLevel;			// Level of Associativity Sets i.e: if =size/blockSize then Direct Mapping,
-											// else if =1 then Full Associative else Set Associative.
+			int associativityLevel;			// Level of Associativity Sets i.e: if =size/blockSize then Full Associative,
+											// else if =1 then Direct Mapped else Set Associative.
 			int accessCycles;				// No. of cycles needed for accessing cache
 			boolean writePolicy;			// { true: "Write Through", false: "Write Back" } 
 			
@@ -47,7 +48,13 @@ public class Simulator {
 			int size = sc.nextInt();
 			System.out.println("\tSize for one Block in Words: ");
 			int blockSize = sc.nextInt();
-			System.out.println("\tLevel of Associativity Sets; ie: number of Sets the cache is divided to: ");
+			
+			if(i>1) while(blockSize != cacheDetails[i-1].blockSize) {
+				System.out.println("\t\tCaches cannot have different block sizes, please enter " + cacheDetails[i-1].blockSize + ": ");
+				blockSize = sc.nextInt();
+			}
+			
+			System.out.println("\tLevel of Associativity Sets; ie: number of elements in one set of cache: ");
 			int associativityLevel = sc.nextInt();
 			System.out.println("\tNo. of cycles needed for accessing cache: ");
 			int accessCycles = sc.nextInt();
@@ -57,15 +64,47 @@ public class Simulator {
 			cacheDetails[i] = new cacheDetails(size, blockSize, associativityLevel, accessCycles, writePolicy);
 		}
 		
+		int pipelineWidth; /* The number of instructions that can be issued to the reservation stations
+							simultaneously under ideal circumstances */
+		int instructionBufferSize;
+		int ROBSize;
+		String[] reservationStationTypes = { "Mult", "Logical", "Add", "Branch", "Load", "Store" };
+		int[] reservationStationCount = new int[6];
+		int[] reservationStationCycles = new int[6];
+		
+		System.out.println("Nice work for now; We need also to know your desired pipeline Width: ");
+		pipelineWidth = sc.nextInt();
+		System.out.println("In addition; instruction Buffer Size: ");
+		instructionBufferSize = sc.nextInt();
+		System.out.println("Also; Maximum number of entries in Reorder Buffer: ");
+		ROBSize = sc.nextInt();
+		
+		System.out.println("Next Stage: We need to know Specifications (Count, cycle latency) "
+				+ "for each Reservation station type ! :) \n");
+		for(int i=0; i<6; i++) {
+			System.out.printf("\tFor \"%s\" Reservation Station Type\n", reservationStationTypes[i]);
+			System.out.println("\t\tHow many ? : ");
+			reservationStationCount[i] = sc.nextInt();
+			System.out.println("\t\tTheir Latency (in Cycles) ? : ");
+			reservationStationCycles[i] = sc.nextInt();
+		}
+		
 		System.out.println("\n\nNice Work, Now we need to know your assembly program filename : ");
 		assemblyFileName = sc.nextLine();
 		
-		// TODO: Getting file and ensuring No exceptions of IO of FileNotFound
+		File assembly = new File(sc.nextLine());
+		while(!(assembly.exists() && !assembly.isDirectory())) {
+			System.out.println("Sorry ! The file you specified cannot be read or does not exist .. ");
+			System.out.println("Please specify a valid file name: ");
+			assembly = new File(sc.nextLine());
+		}
+		
+		
 		// TODO: Initialing Main Memory
 		// TODO: Initializing Assembler to assemble file and get binaries
 		// TODO: If AssemblerException thrown print to the user asking to edit file and loop to try again.
 		
-		// TODO: put program into memory starting at address 0x0000
+		// TODO: put program into memory starting at address given by user
 		
 		// TODO: Initialize CPU and start simulation
 		
