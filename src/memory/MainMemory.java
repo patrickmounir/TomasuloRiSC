@@ -26,7 +26,7 @@ public class MainMemory extends Memory {
 	}
 
 	@Override
-	void write(short address, Object data, boolean firstLevel) {
+	public void write(short address, Object data, boolean firstLevel) {
 		if(firstLevel){
 			memoryData[address] = (short)data;
 		}else 

@@ -8,6 +8,10 @@ public class Cache extends Memory{
 	private int associativity;
 	private int hits, misses;
 	protected Memory lowerLevel;
+	public Memory getLowerLevel() {
+		return lowerLevel;
+	}
+
 	private CacheEntry [] lines;
 	
 	public Cache(int size, short blockSize, int associativity, boolean writePolicy, int cycleAccessTime, Memory lowerLevel) {
@@ -16,6 +20,7 @@ public class Cache extends Memory{
 		this.lines = new CacheEntry[size/blockSize];
 		for(int i=0;i<this.lines.length;i++)
 			lines[i] = new CacheEntry((short) 0, null);
+		this.associativity = associativity;
 	}
 	
 	private static class CacheEntry{

@@ -54,6 +54,7 @@ public class Assembler {
 									instructionParsed <<=10;
 									instructionParsed |= (Short.parseShort(argument)&0x03ff);//to make all but the least significant 10 bits zeroes	
 								}else{
+									reader.close();
 									throw new AssemblyException("The Immediate of the JMP instruction must be between 511 and -512 at line number :"+lineNumber);
 								}
 								
@@ -64,6 +65,7 @@ public class Assembler {
 		
 									
 								}else{
+									reader.close();
 									throw new AssemblyException("The Immediate of the BEQ,LW,SW,and ADDI instruction must be between 63 and -64 at line number :"+lineNumber);
 
 								}
@@ -84,9 +86,11 @@ public class Assembler {
 					}
 					parsedInstructions.add(instructionParsed);
 				}
-				reader.close();
-				//TODO: write the assembly in a seperate file
-				return  parsedInstructions;
+			reader.close();
+			// Instructionat end to stop program
+			parsedInstructions.add((short)0b1110000000000111);
+			//TODO: write the assembly in a seperate file
+			return  parsedInstructions;
 			
 	}
 	

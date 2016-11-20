@@ -1,19 +1,28 @@
 package simulator;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 
 import memory.Cache;
 
 public class CPU {
+	
 	static enum functionalUnit{
 		LOAD, STROE, LOGICAL, ADD,MUL,BRANCH
 	}
 	static enum Instruction{
 		LW,SW,JMP,BEQ,JALR,RET,ADD,ADDI,SUB,NAND,MUL
 	}
+
+	int missPrediction = 0;
+	int branchCount = 0;
+	int pipelineWidth;
+	int instructionBufferSize;
+	java.util.Queue<int[]> instructionBuffer;
 	int [] regFile = new int[8];
 	int [] regTable = new int[8];
 	RSEntry [][] reservationStation = new RSEntry[6][];
+	int[] reservationStationLatencies = new int[6];
 	Cache instructionCache;
 	Cache dataCache;
 	int PC;
@@ -24,16 +33,20 @@ public class CPU {
 		Arrays.fill(regTable, -1);
 		int i = 0;
 		for(int size : unitsNo){
-			reservationStation[i++] = new RSEntry [size];
+			if(i<6)	reservationStation[i++] = new RSEntry [size];
+			else reservationStationLatencies[i-6] = size;
 		}
 	}
+	
 	public int[] decode(int instruction){
 		
 		int opcode = (instruction&(7<<13))>>13;
-		int functional= (instruction&(3));
+		int functional= (instruction&(7));
 		int [] decoded = null;
 		switch(opcode){
 		case 7:
+			if(functional > 3) return null;
+			
 			decoded = new int [5];
 			decoded[2] = (instruction&(7<<10))>>10;
 			decoded[3] =(instruction&(7<<7))>>7;
@@ -106,6 +119,7 @@ public class CPU {
 		}
 		return decoded;
 	}
+	
 	static class RSEntry{
 		String name;
 		boolean busy;
@@ -131,6 +145,26 @@ public class CPU {
 		} 
 		
 	}
+	
+	public void init(int pipelineWidth, int instructionBufferSize, int startAddress) {
+		this.pipelineWidth = pipelineWidth;
+		this.instructionBufferSize = instructionBufferSize;
+		this.PC = startAddress;
+		instructionBuffer = new LinkedList<int[]>();
+	}
+	
+	public void simulate() {
+		
+		int cycles = 0;
+		
+		while(true) {
+			
+			
+			
+		}
+		
+	}
+	
 	public static void main(String[] args) {
 		System.out.println(Arrays.toString(Instruction.values()));
 	}
