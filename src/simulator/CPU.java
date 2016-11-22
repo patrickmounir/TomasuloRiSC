@@ -1,5 +1,7 @@
 package simulator;
 
+//Comment malosh lazma
+
 import java.util.Arrays;
 
 import memory.Cache;
