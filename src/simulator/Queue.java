@@ -4,6 +4,15 @@ import java.util.Arrays;
 
 public class Queue{
 	private ROBEntry [] data;
+	
+	public ROBEntry[] getData() {
+		return data;
+	}
+
+	public int getTail() {
+		return tail;
+	}
+
 	private int size = 0, head = 0, tail = 0;
 	
 	public Queue(int robSize) {
