@@ -148,7 +148,7 @@ public class CPU {
 			this.latency = latency;
 			this.cyclesRemToWrite = cyclesRemToWrite;
 			this.instrcutionIndex=instructionIndex;
-			busy=false;
+			busy = false;
 			
 		}
 		public String toString(){
