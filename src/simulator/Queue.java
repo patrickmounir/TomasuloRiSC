@@ -18,7 +18,11 @@ public class Queue{
 	public Queue(int robSize) {
 		data = new ROBEntry [robSize];
 	}
-	
+	public void flush() {
+		tail = 0;
+		head = 0;
+		size = 0;
+	}
 	public boolean isEmpty(){
 		return size == 0;
 	}

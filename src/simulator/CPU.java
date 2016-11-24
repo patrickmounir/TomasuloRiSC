@@ -195,7 +195,7 @@ public class CPU {
 					PC++;
 					
 					if(decodedInstruction[1]==Instruction.JMP.ordinal()) {
-						PC = (short)(regFile[decodedInstruction[2]]);
+						PC += (short)(regFile[decodedInstruction[2]]);
 						PC += decodedInstruction[3];
 						decodedInstruction[5]=PC;
 					} else if(decodedInstruction[1]==Instruction.JALR.ordinal()) {
@@ -253,31 +253,44 @@ public class CPU {
 			//commit stage
 			if(!ROB.isEmpty()) {
 				ROBEntry entry = ROB.remove();
-				if(!(entry.instructionType.equals("SW")||
-						entry.instructionType.equals("BEQ")||
-						entry.instructionType.equals("JMP")||
-						entry.instructionType.equals("JALR")||
-						entry.instructionType.equals("RET"))){
-					for(int i=0;i<regTable.length;i++){
-						if(regTable[i]==entry.index){
-							regFile[i]=entry.value;
-							break;
+				//TODO: check that the entry is not null
+				if(entry!=null) {
+					if(!(entry.instructionType.equals("SW")||
+							entry.instructionType.equals("BEQ")||
+							entry.instructionType.equals("JMP")||
+							entry.instructionType.equals("JALR")||
+							entry.instructionType.equals("RET"))){
+						for(int i=0;i<regTable.length;i++){
+							if(regTable[i]==entry.index&&i!=0){
+								regFile[i]=entry.value;
+								break;
+							}
+								
 						}
-							
+					}else {
+						if(entry.instructionType.equals("BEQ")) {
+							if(entry.value!=0) {
+								PC=(short)(entry.value & 0x0000ffff);
+								flush();
+								continue;
+							}
+						}
 					}
 				}
-				// TODO:  if misprediction rollback
+				
+				// TODO:  if misprediction (unconditional) rollback
 			}
 			//Write stage
 			if(reservationStation[minSoFarStation][minSoFarPosition].busy&&reservationStation[minSoFarStation][minSoFarPosition].cyclesRemToWrite==0) {
 				int value=0;
 				RSEntry toBeWritten = reservationStation[minSoFarStation][minSoFarPosition];
+				toBeWritten.busy=false;
 				switch(toBeWritten.op){
 				case "SW":
-					dataCache.write((short)toBeWritten.A, toBeWritten.Vk, true);
+					dataCache.write(toBeWritten.A, (short)toBeWritten.Vk, true);
 					break;
 				case "LD":
-					value = (int) dataCache.read((short)toBeWritten.A, true);
+					value = (int) dataCache.read(toBeWritten.A, true);
 					break;
 				case "ADD": 
 				case "ADDI":
@@ -292,13 +305,24 @@ public class CPU {
 				case "NAND":
 					value = ~(toBeWritten.Vj & toBeWritten.Vk);
 					break;
-				case "JMP": 
+//				case "JMP": 
+//					
+//					break;
+//				case "JALR":break;
+//				case "RET":break;
+				case "BEQ":
+					if(toBeWritten.Vj==toBeWritten.Vk&&toBeWritten.A>0) {
+						value = (toBeWritten.PC+toBeWritten.A)| (1<<16);
+					}else {
+						if(toBeWritten.Vj!=toBeWritten.Vk&&toBeWritten.A<0) {
+							value = (toBeWritten.PC)| (1<<16);
+						}
+						
+					}
 					
 					break;
-				case "JALR":break;
-				case "RET":break;
-				case "BEQ":break;
-				// TODO : all branches remaining (conditionally & unconditionally)
+				// TODO : all branches remaining ( unconditionally)
+					// According to jailan, we must stall fetching until (JMP/JALR/RET) address resolved.
 				}
 				for(int i = 0;i<6;i++) {
 					for(int j = 0;j<reservationStation[i].length;j++) {
@@ -402,6 +426,23 @@ public class CPU {
 		
 		// TODO: Analyse report & statistics.
 		System.out.println(cycles);
+	}
+	public void flush() {
+		ROB.flush();
+		for(int i = 0;i<regTable.length;i++) {
+			regTable[i]=-1;
+		}
+		functionalUnit[] functionalUnitNames = functionalUnit.values();
+		for(int i=0; i<6; i++) {
+			for(int j=0; j<reservationStation[i].length; j++) {
+				reservationStation[i][j] = new RSEntry(functionalUnitNames[i]+""+(j+1), 
+						"", -1, -1, -1, -1, -1, -1, -1, reservationStationLatencies[i], -1);
+			}
+		}
+		while(!instructionBuffer.isEmpty()) {
+			instructionBuffer.poll();
+		}
+		
 	}
 	
 	public static void main(String[] args) {

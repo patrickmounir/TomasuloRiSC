@@ -13,6 +13,6 @@ public abstract class Memory {
 		this.blockSize = blockSize;
 	}
 	
-	abstract Object read(short address, boolean firstLevel);
-	abstract void write(short address, Object data, boolean firstLevel);
+	abstract Object read(int address, boolean firstLevel);
+	abstract void write(int address, Object data, boolean firstLevel);
 }

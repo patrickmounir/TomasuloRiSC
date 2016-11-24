@@ -1,6 +1,6 @@
 package memory;
 
-public class MainMemory extends Memory {
+public final class MainMemory extends Memory {
 	
 	short[] memoryData;
 
@@ -11,7 +11,7 @@ public class MainMemory extends Memory {
 	}
 
 	@Override
-	short[] read(short address, boolean firstLevel) {
+	short[] read(int address, boolean firstLevel) {
 		short[] blockData = new short[blockSize];
 		int startAddress = (address/blockSize) * blockSize;
 		
@@ -26,7 +26,7 @@ public class MainMemory extends Memory {
 	}
 
 	@Override
-	public void write(short address, Object data, boolean firstLevel) {
+	public void write(int address, Object data, boolean firstLevel) {
 		if(firstLevel){
 			memoryData[address] = (short)data;
 		}else 
