@@ -1,11 +1,14 @@
 package simulator;
 
 
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import GUI.GUI;
 import assembler.Assembler;
 import assembler.AssemblyException;
 import memory.Cache;
@@ -14,6 +17,7 @@ import memory.Memory;
 
 
 public class Simulator {
+	private GUI gui = new GUI();
 	
 	class cacheDetails {
 		int size;						// Cache Size in Words.
@@ -53,14 +57,26 @@ public class Simulator {
 
 		Scanner sc = new Scanner(System.in);
 		
-		System.out.println("Welcome to Tomasulo's RiSC Simoulator, Please follow the "
-				+ "instructions to specify simulation parameters. \n");
+	/*	System.out.println("Welcome to Tomasulo's RiSC Simoulator, Please follow the "
+				+ "instructions to specify simulation parameters. \n");*/
 		
-		System.out.println("\nHow many cache levels You'd like the processor to have (Minimum=1) ? : ");
-		cacheLevels = sc.nextInt();
+		//System.out.println("\nHow many cache levels You'd like the processor to have (Minimum=1) ? : ");
+		
+		gui.lblInfo.setText("\nHow many cache levels You'd like the processor to have (Minimum=1) ? : ");
+
+		gui.btnRun.addActionListener(new ActionListener() {
+			
+			public void actionPerformed(ActionEvent e) {
+				
+				//bt3ml 7aga hna w allah a3lm :)
+			}
+		});
+		
+		
+	
 		cacheDetails = new cacheDetails[cacheLevels+1];	
 		
-		System.out.println("Keep in mind Cache L1 will be the nearest to Processor ! \n\n");
+	//	System.out.println("Keep in mind Cache L1 will be the nearest to Processor ! \n\n");
 		
 		// Getting Inputs for every cache Level
 		// NOTE: Cache Li will have its details at cacheDetails[i] // 0 is NOT used.
@@ -144,7 +160,7 @@ public class Simulator {
 		
 		
 		Simulator sim = new Simulator();
-		
+						
 		sim.inputCacheDetails();
 		sim.inputCPUDetails();
 		
