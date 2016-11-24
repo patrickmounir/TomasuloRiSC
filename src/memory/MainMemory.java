@@ -1,5 +1,7 @@
 package memory;
 
+import java.util.Random;
+
 public class MainMemory extends Memory {
 	
 	short[] memoryData;
@@ -42,6 +44,16 @@ public class MainMemory extends Memory {
 		workCycles += cycleAccessTime;
 		
 	}
+	
+	 void memoryFill (){
+			Random rand =new Random();
+
+			//filling memory with blocks of data 
+			for(int i=0;i<this.size;i++){
+				memoryData[0] = (short)rand.nextInt();
+			}
+			
+		}
 	
 
 }
