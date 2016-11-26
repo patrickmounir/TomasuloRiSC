@@ -1,0 +1,2 @@
+ADDI R1, R3,5
+SUB R2, R1,R7 

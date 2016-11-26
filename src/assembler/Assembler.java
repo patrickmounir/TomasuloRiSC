@@ -136,7 +136,7 @@ public class Assembler {
 	public static void main(String[] args) {
 		Assembler assembler = new Assembler();
 		try {
-			ArrayList<Short> result = assembler.parse("test.asm");
+			ArrayList<Short> result = assembler.parse("assembly.asm");
 			for(int i = 0;i<result.size();i++){
 				Short line = result.get(i);
 				System.out.println(line);

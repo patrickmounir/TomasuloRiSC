@@ -4,6 +4,7 @@ package simulator;
 
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.Scanner;
 
 import memory.Cache;
 import simulator.Queue.ROBEntry;
@@ -29,9 +30,9 @@ public class CPU {
 	int[] reservationStationLatencies = new int[6];
 	Cache instructionCache;
 	Cache dataCache;
-	short PC;
-	short oldPC;
-	short newPC;
+	int PC;
+	int oldPC;
+	int newPC;
 	
 	public CPU(Cache instructionCache, Cache dataCache,int ...unitsNo) {
 		this.instructionCache=instructionCache;
@@ -157,7 +158,7 @@ public class CPU {
 		
 	}
 	
-	public void init(int pipelineWidth, int instructionBufferSize, short startAddress, int robSize) {
+	public void init(int pipelineWidth, int instructionBufferSize, int startAddress, int robSize) {
 		this.pipelineWidth = pipelineWidth;
 		this.instructionBufferSize = instructionBufferSize;
 		this.PC = startAddress;
@@ -170,6 +171,9 @@ public class CPU {
 						"", -1, -1, -1, -1, -1, -1, -1, reservationStationLatencies[i], -1);
 			}
 		}
+		for(int i =0; i<6;i++){
+			System.out.println(Arrays.toString(reservationStation[i]));
+		}
 		
 		ROB = new Queue(robSize);
 	}
@@ -179,9 +183,9 @@ public class CPU {
 		int cycles = 0;
 		boolean fetch = true;
 		int issueCounter = 0;
-		
+		Scanner stall = new Scanner(System.in);
 		while(true) {
-			
+			System.out.println("Cycle t"+cycles);
 			
 			// FRONT END
 			if((instructionBufferSize-instructionBuffer.size()) >= pipelineWidth && fetch) {
@@ -195,16 +199,20 @@ public class CPU {
 					PC++;
 					
 					if(decodedInstruction[1]==Instruction.JMP.ordinal()) {
-						PC += (short)(regFile[decodedInstruction[2]]);
-						PC += decodedInstruction[3];
 						decodedInstruction[5]=PC;
+						fetch =false;
+						break;
 					} else if(decodedInstruction[1]==Instruction.JALR.ordinal()) {
 						oldPC = PC;
-						PC = (short) regFile[decodedInstruction[3]];
+					
 						decodedInstruction[5]=PC;
+						fetch =false;
+						break;
 					} else if(decodedInstruction[1]==Instruction.RET.ordinal()) {
-						PC = (short) regFile[decodedInstruction[2]];
+						
 						decodedInstruction[5]=PC;
+						fetch =false;
+						break;
 					} else if(decodedInstruction[1]==Instruction.BEQ.ordinal()) {
 						decodedInstruction[5]=PC;
 						PC += (decodedInstruction[4]<0)?((short) decodedInstruction[4]):0;
@@ -231,10 +239,14 @@ public class CPU {
 			boolean [][] execute = new boolean [6][];
 			for(int i = 0;i<6;i++) {
 				for(int j = 0;j<reservationStation[i].length;j++) {
+					if(j ==0){
+						execute[i]= new boolean[reservationStation[i].length];
+					}
 					execute[i][j]=(reservationStation[i][j].busy&&
 							(reservationStation[i][j].Qj==-1)&&
 							(reservationStation[i][j].Qk==-1)&&
 							(reservationStation[i][j].cyclesRemToWrite!=0));
+				
 				}
 			}
 			int minSoFarStation=0,minSoFarPosition=0;
@@ -253,8 +265,10 @@ public class CPU {
 			//commit stage
 			if(!ROB.isEmpty()) {
 				ROBEntry entry = ROB.remove();
+
 				//TODO: check that the entry is not null
 				if(entry!=null) {
+					System.out.println("Rob #"+entry.index+" is committing ");
 					if(!(entry.instructionType.equals("SW")||
 							entry.instructionType.equals("BEQ")||
 							entry.instructionType.equals("JMP")||
@@ -270,21 +284,37 @@ public class CPU {
 					}else {
 						if(entry.instructionType.equals("BEQ")) {
 							if(entry.value!=0) {
-								PC=(short)(entry.value & 0x0000ffff);
+								PC=(entry.value & 0x0000ffff);
 								flush();
 								continue;
+							}
+						}else{
+							if(entry.instructionType.equals("JMP")||entry.instructionType.equals("RET")){
+								fetch =true;
+							}else{
+								if(entry.instructionType.equals("JALR")){
+									for(int i=0;i<regTable.length;i++){
+										if(regTable[i]==entry.index&&i!=0){
+											regFile[i]=entry.value;
+											break;
+										}
+											
+									}
+									fetch =true;
+								}
 							}
 						}
 					}
 				}
 				
-				// TODO:  if misprediction (unconditional) rollback
+				
 			}
 			//Write stage
 			if(reservationStation[minSoFarStation][minSoFarPosition].busy&&reservationStation[minSoFarStation][minSoFarPosition].cyclesRemToWrite==0) {
 				int value=0;
 				RSEntry toBeWritten = reservationStation[minSoFarStation][minSoFarPosition];
 				toBeWritten.busy=false;
+				System.out.println("I"+toBeWritten.instrcutionIndex+" is writing ");
 				switch(toBeWritten.op){
 				case "SW":
 					dataCache.write(toBeWritten.A, (short)toBeWritten.Vk, true);
@@ -305,11 +335,16 @@ public class CPU {
 				case "NAND":
 					value = ~(toBeWritten.Vj & toBeWritten.Vk);
 					break;
-//				case "JMP": 
-//					
-//					break;
-//				case "JALR":break;
-//				case "RET":break;
+				case "JMP": 
+					value=PC+toBeWritten.Vk+toBeWritten.Vj;
+					break;
+				case "JALR":
+					value = toBeWritten.PC;
+					PC = toBeWritten.Vj;
+					break;
+				case "RET":
+					PC = toBeWritten.Vj;
+					break;
 				case "BEQ":
 					if(toBeWritten.Vj==toBeWritten.Vk&&toBeWritten.A>0) {
 						value = (toBeWritten.PC+toBeWritten.A)| (1<<16);
@@ -321,8 +356,7 @@ public class CPU {
 					}
 					
 					break;
-				// TODO : all branches remaining ( unconditionally)
-					// According to jailan, we must stall fetching until (JMP/JALR/RET) address resolved.
+				
 				}
 				for(int i = 0;i<6;i++) {
 					for(int j = 0;j<reservationStation[i].length;j++) {
@@ -346,6 +380,7 @@ public class CPU {
 				for(int j = 0;j<reservationStation[i].length;j++) {
 					if(execute[i][j]) {
 						reservationStation[i][j].cyclesRemToWrite--;
+						System.out.println("I"+reservationStation[i][j].instrcutionIndex+" executing and remaining "+reservationStation[i][j].cyclesRemToWrite+" cycles");
 					}
 				}
 			}
@@ -397,6 +432,7 @@ public class CPU {
 						reservationStation[instructionIssued[0]][issuePos].Qj=regTable[instructionIssued[2]];
 						reservationStation[instructionIssued[0]][issuePos].Vj=regFile[instructionIssued[2]];
 						reservationStation[instructionIssued[0]][issuePos].Vk=instructionIssued[3];
+						reservationStation[instructionIssued[0]][issuePos].Qk=-1;
 						reservationStation[instructionIssued[0]][issuePos].PC=instructionIssued[5];
 						break;
 					case "JALR" :
@@ -416,13 +452,25 @@ public class CPU {
 					}
 					break;
 				}
+				if(reservationStation[instructionIssued[0]][issuePos].Qj!=-1&&ROB.getData()[reservationStation[instructionIssued[0]][issuePos].Qj].ready){
+					
+					reservationStation[instructionIssued[0]][issuePos].Vj=ROB.getData()[reservationStation[instructionIssued[0]][issuePos].Qj].value;
+					reservationStation[instructionIssued[0]][issuePos].Qj=-1;
+				}
+				if(reservationStation[instructionIssued[0]][issuePos].Qk!=-1&&ROB.getData()[reservationStation[instructionIssued[0]][issuePos].Qk].ready){
+					reservationStation[instructionIssued[0]][issuePos].Vk=ROB.getData()[reservationStation[instructionIssued[0]][issuePos].Qk].value;
+					reservationStation[instructionIssued[0]][issuePos].Qk=-1;
+				}
 				ROB.insert(new ROBEntry(ROB.getTail(),Instruction.values()[instructionIssued[1]].toString()));
+				System.out.println("I"+reservationStation[instructionIssued[0]][issuePos].instrcutionIndex+" issuing");
+				
 			}
 			
-			
+			stall.nextLine();
 			cycles++;
 			if(instructionBuffer.peek() == null && ROB.isEmpty()) break;
 		}
+		stall.close();
 		
 		// TODO: Analyse report & statistics.
 		System.out.println(cycles);

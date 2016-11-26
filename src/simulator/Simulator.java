@@ -31,8 +31,9 @@ public class Simulator {
 			this.writePolicy = writePolicy;
 		}
 	}
-	
+	int loadStoreLantencies;
 	int cacheLevels; 
+	Scanner sc;
 	cacheDetails[] cacheDetails;
 	String assemblyFileName;
 	int pipelineWidth; /* The number of instructions that can be issued to the reservation stations
@@ -51,7 +52,7 @@ public class Simulator {
 	
 	public void inputCacheDetails() {
 
-		Scanner sc = new Scanner(System.in);
+		 sc = new Scanner(System.in);
 		
 		System.out.println("Welcome to Tomasulo's RiSC Simoulator, Please follow the "
 				+ "instructions to specify simulation parameters. \n");
@@ -64,9 +65,9 @@ public class Simulator {
 		
 		// Getting Inputs for every cache Level
 		// NOTE: Cache Li will have its details at cacheDetails[i] // 0 is NOT used.
-		
+		loadStoreLantencies=0;
 		for(int i=1; i<=cacheLevels; i++){
-			System.out.printf("For cache L%i please provide these details: \n", i);
+			System.out.printf("For cache L%d please provide these details: \n", i);
 			System.out.println("\tCache Size in words: ");
 			int size = sc.nextInt();
 			System.out.println("\tSize for one Block in Words: ");
@@ -85,19 +86,20 @@ public class Simulator {
 			boolean writePolicy = (sc.nextInt()==0);
 			
 			cacheDetails[i] = new cacheDetails(size, blockSize, associativityLevel, accessCycles, writePolicy);
+			loadStoreLantencies+=accessCycles;
 		}
 		
 		System.out.println("Specify main memory access time (In Cycles): ");
 		mainMemoryAccessTime = sc.nextInt();
-		
+		loadStoreLantencies+=mainMemoryAccessTime;
 		cacheDetails[0] = new cacheDetails(cacheDetails[1].size, cacheDetails[1].blockSize, 
 				cacheDetails[1].associativityLevel, cacheDetails[1].accessCycles, cacheDetails[1].writePolicy);
 		
-		sc.close();
+		
 	}
 	
 	public void inputCPUDetails() {
-		Scanner sc = new Scanner(System.in);
+		
 		
 		System.out.println("Nice work for now; We need also to know your desired pipeline Width: ");
 		pipelineWidth = sc.nextInt();
@@ -112,19 +114,24 @@ public class Simulator {
 			System.out.printf("\tFor \"%s\" Reservation Station Type\n", reservationStationTypes[i]);
 			System.out.println("\t\tHow many ? : ");
 			reservationStationCount[i] = sc.nextInt();
-			System.out.println("\t\tTheir Latency (in Cycles) ? : ");
-			reservationStationCycles[i] = sc.nextInt();
+			if(i<4){
+				System.out.println("\t\tTheir Latency (in Cycles) ? : ");
+				reservationStationCycles[i] = sc.nextInt();
+			}
+			
 		}
+		reservationStationCycles[4]=loadStoreLantencies;
+		reservationStationCycles[5]=loadStoreLantencies;
 		
 		System.out.println("\n\nNice Work, Now we need to know your assembly program filename : ");
 		assemblyFileName = sc.nextLine();
 		
-		assembly = new File(sc.nextLine());
+		assembly = new File(assemblyFileName);
 		while(!(assembly.exists() && !assembly.isDirectory())) {
 			System.out.println("Sorry ! The file you specified cannot be read or does not exist .. ");
 			System.out.println("Please specify a valid file name: ");
-			fileName = sc.nextLine();
-			assembly = new File(fileName);
+			assemblyFileName = sc.nextLine();
+			assembly = new File(assemblyFileName);
 		}
 		
 		System.out.println("Please Specify The start address of your program: ");
@@ -132,12 +139,12 @@ public class Simulator {
 		
 		System.out.println();
 		
-		sc.close();
+		
 	}
 	
 	public void Assemble() throws IOException, AssemblyException {
 		assembler = new Assembler();
-		programBinary = assembler.parse(fileName);
+		programBinary = assembler.parse(assemblyFileName);
 	}
 	
 	public static void main(String[] args) {
@@ -150,9 +157,11 @@ public class Simulator {
 		
 		while(true) {
 			try {
+				
 				sim.Assemble();
 				break;
 			} catch (Exception e) {
+				e.printStackTrace();
 				System.err.println("COMPILATION ERROR");
 			}
 		}
@@ -189,7 +198,7 @@ public class Simulator {
 		
 		CPU cpu = new CPU(L1Instruction, L1Data, cpuVarArgs);
 		cpu.init(sim.pipelineWidth, sim.instructionBufferSize, sim.startAddress, sim.ROBSize);
-		
+		cpu.simulate();
 				
 		// TODO: start simulation
 		
