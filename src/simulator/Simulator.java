@@ -1,7 +1,9 @@
 package simulator;
 
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -14,6 +16,9 @@ import memory.Memory;
 
 
 public class Simulator {
+	
+	
+	
 	
 	class cacheDetails {
 		int size;						// Cache Size in Words.
@@ -31,6 +36,7 @@ public class Simulator {
 			this.writePolicy = writePolicy;
 		}
 	}
+	ArrayList<Integer> indices = new ArrayList<Integer>(), memData = new ArrayList<Integer>();
 	int loadStoreLantencies;
 	int cacheLevels; 
 	Scanner sc;
@@ -98,7 +104,7 @@ public class Simulator {
 		
 	}
 	
-	public void inputCPUDetails() {
+	public void inputCPUDetails() throws IOException {
 		
 		
 		System.out.println("Nice work for now; We need also to know your desired pipeline Width: ");
@@ -128,7 +134,7 @@ public class Simulator {
 		
 		assembly = new File(assemblyFileName);
 		while(!(assembly.exists() && !assembly.isDirectory())) {
-			System.out.println("Sorry ! The file you specified cannot be read or does not exist .. ");
+			//System.out.println("Sorry ! The file you specified cannot be read or does not exist .. ");
 			System.out.println("Please specify a valid file name: ");
 			assemblyFileName = sc.nextLine();
 			assembly = new File(assemblyFileName);
@@ -136,7 +142,16 @@ public class Simulator {
 		
 		System.out.println("Please Specify The start address of your program: ");
 		startAddress = sc.nextShort();
-		
+		System.out.println("\n\nNice Work, Now we need to know your filename where the program data is stored : ");
+		String programDataFileName = sc.nextLine();
+		BufferedReader reader = new BufferedReader(new FileReader(sc.nextLine()));
+		String s = "";
+		while((s = reader.readLine()) != null){
+			String [] tmp = s.split(",");
+			indices.add(Integer.parseInt(tmp[0]));
+			memData.add(Integer.parseInt(tmp[1]));
+		}
+		reader.close();
 		System.out.println();
 		
 		
@@ -147,7 +162,7 @@ public class Simulator {
 		programBinary = assembler.parse(assemblyFileName);
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		
 		
 		Simulator sim = new Simulator();
@@ -167,7 +182,9 @@ public class Simulator {
 		}
 		
 		MainMemory ram = new MainMemory((64/2)*1024, sim.mainMemoryAccessTime, false, sim.cacheDetails[0].blockSize);
-		
+		for(int i =0;i<sim.indices.size();i++){
+			ram.memoryData[sim.indices.get(i)]=((short)(sim.memData.get(i).intValue()));
+		}
 		Memory current = ram;
 		for(int i=sim.cacheDetails.length-1; i>0; i--) {
 			Cache next = new Cache(sim.cacheDetails[i].size,

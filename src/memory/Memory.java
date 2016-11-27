@@ -12,7 +12,9 @@ public abstract class Memory {
 		this.writePolicy = writePolicy;
 		this.blockSize = blockSize;
 	}
-	
+	public int getAccessTime(){
+		return cycleAccessTime;
+	}
 	abstract Object read(int address, boolean firstLevel);
 	abstract void write(int address, Object data, boolean firstLevel);
 }

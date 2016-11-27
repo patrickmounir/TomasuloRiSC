@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.Scanner;
 
 import memory.Cache;
+import memory.Memory;
 import simulator.Queue.ROBEntry;
 
 public class CPU {
@@ -40,8 +41,12 @@ public class CPU {
 		Arrays.fill(regTable, -1);
 		int i = 0;
 		for(int size : unitsNo){
-			if(i<6)	reservationStation[i++] = new RSEntry [size];
-			else reservationStationLatencies[i-6] = size;
+			if(i<6)	reservationStation[i] = new RSEntry [size];
+			else {
+				reservationStationLatencies[i-6] = size;
+				
+			}
+			i++;
 		}
 	}
 	
@@ -73,41 +78,68 @@ public class CPU {
 		       decoded[1] =Instruction.MUL.ordinal() ;
 		       break;
 				
-			}
+			}break;
 			case 0:
 				decoded = new int [6];
 				decoded[0]=functionalUnit.LOAD.ordinal();
 				decoded[1] =Instruction.LW.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
 				decoded[3] =(instruction&(7<<7))>>7;
-				decoded[4] = (instruction&(127));break;
+				if(((instruction&(1<<6))>>6)==1){
+					
+					decoded[4] = (instruction&(127))-128;	
+				}else{
+					decoded[4] = (instruction&(63));
+				}break;
 			case 1:
 				decoded = new int [6];
 				decoded[0]=functionalUnit.STORE.ordinal();
 				decoded[1] =Instruction.SW.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
 				decoded[3] =(instruction&(7<<7))>>7;
-				decoded[4] = (instruction&(127));break;
+				if(((instruction&(1<<6))>>6)==1){
+					
+					decoded[4] = (instruction&(127))-128;	
+				}else{
+					decoded[4] = (instruction&(63));
+				}break;
 			case 2:
 				decoded = new int [6];
 				decoded[0]=functionalUnit.BRANCH.ordinal();
 				decoded[1] =Instruction.BEQ.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
 				decoded[3] =(instruction&(7<<7))>>7;
-				decoded[4] = (instruction&(127));break;
+				if(((instruction&(1<<6))>>6)==1){
+					
+					decoded[4] = (instruction&(127))-128;	
+				}else{
+					decoded[4] = (instruction&(63));
+				}
+				break;
 			case 3:
 				decoded = new int [6];
 				decoded[0]=functionalUnit.ADD.ordinal();
 				decoded[1] =Instruction.ADDI.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
 				decoded[3] =(instruction&(7<<7))>>7;
-				decoded[4] = (instruction&(127));break;
+				if(((instruction&(1<<6))>>6)==1){
+					
+					decoded[4] = (instruction&(127))-128;	
+				}else{
+					decoded[4] = (instruction&(63));
+				}break;
 			case 4:
 				decoded = new int [6];
 				decoded[0]=functionalUnit.BRANCH.ordinal();
 				decoded[1] =Instruction.JMP.ordinal() ;
 				decoded[2] = (instruction&(7<<10))>>10;
-				decoded[3] =(instruction&(1023));
+				System.out.println("JMP ja"+(instruction&(1023)));
+				if(((instruction&(1<<9))>>9)==1){
+					
+					decoded[4] = (instruction&(1023))-1024;	
+				}else{
+					decoded[4] = (instruction&(1023));
+				}
 				break;
 
 		case 5:decoded = new int [6];
@@ -171,9 +203,6 @@ public class CPU {
 						"", -1, -1, -1, -1, -1, -1, -1, reservationStationLatencies[i], -1);
 			}
 		}
-		for(int i =0; i<6;i++){
-			System.out.println(Arrays.toString(reservationStation[i]));
-		}
 		
 		ROB = new Queue(robSize);
 	}
@@ -183,6 +212,8 @@ public class CPU {
 		int cycles = 0;
 		boolean fetch = true;
 		int issueCounter = 0;
+		double misprediction =0;
+		double predictions = 0;
 		Scanner stall = new Scanner(System.in);
 		while(true) {
 			System.out.println("Cycle t"+cycles);
@@ -199,22 +230,25 @@ public class CPU {
 					PC++;
 					
 					if(decodedInstruction[1]==Instruction.JMP.ordinal()) {
+						predictions++;
 						decodedInstruction[5]=PC;
 						fetch =false;
 						break;
 					} else if(decodedInstruction[1]==Instruction.JALR.ordinal()) {
 						oldPC = PC;
-					
+						predictions++;
 						decodedInstruction[5]=PC;
 						fetch =false;
 						break;
 					} else if(decodedInstruction[1]==Instruction.RET.ordinal()) {
-						
+						predictions++;
 						decodedInstruction[5]=PC;
 						fetch =false;
 						break;
 					} else if(decodedInstruction[1]==Instruction.BEQ.ordinal()) {
+						predictions++;
 						decodedInstruction[5]=PC;
+						
 						PC += (decodedInstruction[4]<0)?((short) decodedInstruction[4]):0;
 					}
 					
@@ -226,14 +260,17 @@ public class CPU {
 			
 			//Will we issue in this cycle ?
 			boolean issue = false;
-			int issuePos;
-			for(issuePos = 0; issuePos<reservationStation[instructionBuffer.peek()[0]].length; issuePos++) {
-				issue |= !(reservationStation[instructionBuffer.peek()[0]][issuePos].busy);
-				if(issue) break;
+			int issuePos=0;
+			if(instructionBuffer.peek()!=null){
+				for(issuePos = 0; issuePos<reservationStation[instructionBuffer.peek()[0]].length; issuePos++) {
+					issue |= !(reservationStation[instructionBuffer.peek()[0]][issuePos].busy);
+					if(issue) break;
+				}
+					
+				issue &= !ROB.isFull();
+				issue &= (instructionBuffer.peek()!=null);	
 			}
-				
-			issue &= !ROB.isFull();
-			issue &= (instructionBuffer.peek()!=null);
+			
 			
 			
 			boolean [][] execute = new boolean [6][];
@@ -249,16 +286,28 @@ public class CPU {
 				
 				}
 			}
+			//write check
 			int minSoFarStation=0,minSoFarPosition=0;
 			for(int i = 0;i<6;i++) {
 				for(int j = 0;j<reservationStation[i].length;j++) {
-					if(reservationStation[i][j].busy) {
-						if(!reservationStation[minSoFarStation][minSoFarPosition].busy||
-								((reservationStation[i][j].cyclesRemToWrite==0)&&
-								(reservationStation[i][j].instrcutionIndex<reservationStation[minSoFarStation][minSoFarPosition].instrcutionIndex))) {
+					if(reservationStation[i][j].busy && reservationStation[i][j].cyclesRemToWrite==0) {
+						if(!reservationStation[minSoFarStation][minSoFarPosition].busy||reservationStation[minSoFarStation][minSoFarPosition].cyclesRemToWrite!=0){
 							minSoFarStation=i;
 							minSoFarPosition=j;
-						}	
+						}else{
+							if((reservationStation[i][j].instrcutionIndex<reservationStation[minSoFarStation][minSoFarPosition].instrcutionIndex)){
+								minSoFarStation=i;
+								minSoFarPosition=j;
+							}
+						}
+//						if(!reservationStation[minSoFarStation][minSoFarPosition].busy||
+//								((reservationStation[i][j].cyclesRemToWrite==0)&&
+//								(reservationStation[minSoFarStation][minSoFarPosition].cyclesRemToWrite!=0)&&
+//								(reservationStation[i][j].instrcutionIndex<reservationStation[minSoFarStation][minSoFarPosition].instrcutionIndex))) {
+//							minSoFarStation=i;
+//							minSoFarPosition=j;
+//						}	
+						
 					}		
 				}
 			}
@@ -266,7 +315,6 @@ public class CPU {
 			if(!ROB.isEmpty()) {
 				ROBEntry entry = ROB.remove();
 
-				//TODO: check that the entry is not null
 				if(entry!=null) {
 					System.out.println("Rob #"+entry.index+" is committing ");
 					if(!(entry.instructionType.equals("SW")||
@@ -286,11 +334,18 @@ public class CPU {
 							if(entry.value!=0) {
 								PC=(entry.value & 0x0000ffff);
 								flush();
+								fetch =true;
+								stall.nextLine();
+								cycles++;
 								continue;
 							}
 						}else{
 							if(entry.instructionType.equals("JMP")||entry.instructionType.equals("RET")){
+								PC =entry.value;
 								fetch =true;
+								stall.nextLine();
+								cycles++;
+								continue;
 							}else{
 								if(entry.instructionType.equals("JALR")){
 									for(int i=0;i<regTable.length;i++){
@@ -300,7 +355,10 @@ public class CPU {
 										}
 											
 									}
+									stall.nextLine();
+									cycles++;
 									fetch =true;
+									continue;
 								}
 							}
 						}
@@ -343,18 +401,20 @@ public class CPU {
 					PC = toBeWritten.Vj;
 					break;
 				case "RET":
-					PC = toBeWritten.Vj;
+					value = toBeWritten.Vj;
 					break;
 				case "BEQ":
 					if(toBeWritten.Vj==toBeWritten.Vk&&toBeWritten.A>0) {
 						value = (toBeWritten.PC+toBeWritten.A)| (1<<16);
+						misprediction++;
 					}else {
 						if(toBeWritten.Vj!=toBeWritten.Vk&&toBeWritten.A<0) {
 							value = (toBeWritten.PC)| (1<<16);
+							misprediction++;
 						}
 						
 					}
-					
+					System.out.println("Immediate "+toBeWritten.A);
 					break;
 				
 				}
@@ -403,16 +463,17 @@ public class CPU {
 						reservationStation[instructionIssued[0]][issuePos].Qk=regTable[instructionIssued[4]];
 						reservationStation[instructionIssued[0]][issuePos].Vk=regFile[instructionIssued[4]];
 					}
-					regTable[instructionIssued[2]]= reservationStation[instructionIssued[0]][issuePos].Dest;
+					
 					reservationStation[instructionIssued[0]][issuePos].Qj=regTable[instructionIssued[3]];
 					reservationStation[instructionIssued[0]][issuePos].Vj=regFile[instructionIssued[3]];
-					
+					regTable[instructionIssued[2]]= reservationStation[instructionIssued[0]][issuePos].Dest;
 					break;
 				case "LOAD" :
-					regTable[instructionIssued[2]]= reservationStation[instructionIssued[0]][issuePos].Dest;
+					
 					reservationStation[instructionIssued[0]][issuePos].Qj=regTable[instructionIssued[3]];
 					reservationStation[instructionIssued[0]][issuePos].Vj=regFile[instructionIssued[3]];
 					reservationStation[instructionIssued[0]][issuePos].A=instructionIssued[4];
+					regTable[instructionIssued[2]]= reservationStation[instructionIssued[0]][issuePos].Dest;
 					break;
 				case "STORE" : 
 					reservationStation[instructionIssued[0]][issuePos].Qj=regTable[instructionIssued[3]];
@@ -462,7 +523,7 @@ public class CPU {
 					reservationStation[instructionIssued[0]][issuePos].Qk=-1;
 				}
 				ROB.insert(new ROBEntry(ROB.getTail(),Instruction.values()[instructionIssued[1]].toString()));
-				System.out.println("I"+reservationStation[instructionIssued[0]][issuePos].instrcutionIndex+" issuing");
+				System.out.println("I"+reservationStation[instructionIssued[0]][issuePos].instrcutionIndex+" issuing in "+	reservationStation[instructionIssued[0]][issuePos].op);
 				
 			}
 			
@@ -471,9 +532,38 @@ public class CPU {
 			if(instructionBuffer.peek() == null && ROB.isEmpty()) break;
 		}
 		stall.close();
-		
+		System.out.println("________________Report_____________________");
 		// TODO: Analyse report & statistics.
-		System.out.println(cycles);
+		System.out.println("Total execution Time: "+cycles);
+		
+		System.out.println("IPC: "+issueCounter*1.0/cycles);
+		double hitRatio = ((Cache)instructionCache).getHits()*1.0/(((Cache)instructionCache).getHits()+((Cache)instructionCache).getMisses());
+		System.out.println("Instruction Cache has hit ratio: "+hitRatio);
+		Memory current= dataCache;
+		int level =1;
+		//TODO: Calculate AMAT
+		double globalMissRatio=1;
+		double AMAT =current.getAccessTime();
+		while(current instanceof Cache){
+			if(((Cache)current).getHits()+((Cache)current).getMisses()>0){
+				hitRatio = ((Cache)current).getHits()*1.0/(((Cache)current).getHits()+((Cache)current).getMisses());
+			}else{
+				hitRatio=1;
+			}
+			globalMissRatio *=(1-hitRatio);
+			AMAT += globalMissRatio*(((Cache) current).getLowerLevel()).getAccessTime();
+			 
+			System.out.println("Cache level "+level+++" has hit ratio: "+hitRatio);
+			current = ((Cache)current).getLowerLevel();
+		}
+		System.out.println("The AMAT is equal to : "+AMAT+" cycles");
+		if(predictions!=0){
+			System.out.println("Misprediction Precentage: "+100*(misprediction/predictions)+"%");
+		}
+		else{
+			System.out.println("Misprediction Precentage: 0%");
+		}
+			
 	}
 	public void flush() {
 		ROB.flush();

@@ -2,7 +2,7 @@ package memory;
 
 public final class MainMemory extends Memory {
 	
-	short[] memoryData;
+	public short[] memoryData;
 
 	public MainMemory(int size, int cycleAccessTime, boolean writePolicy, short blockSize) {
 		super(size, cycleAccessTime, false, blockSize);
