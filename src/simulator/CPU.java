@@ -324,6 +324,7 @@ public class CPU {
 						for(int i=0;i<regTable.length;i++){
 							if(regTable[i]==entry.index&&i!=0){
 								regFile[i]=entry.value;
+								regTable[i]=-1;
 								break;
 							}
 								
@@ -350,6 +351,7 @@ public class CPU {
 									for(int i=0;i<regTable.length;i++){
 										if(regTable[i]==entry.index&&i!=0){
 											regFile[i]=entry.value;
+											regTable[i]=-1;
 											break;
 										}
 											
@@ -376,8 +378,8 @@ public class CPU {
 				case "SW":
 					dataCache.write(toBeWritten.A, (short)toBeWritten.Vk, true);
 					break;
-				case "LD":
-					value = (int) dataCache.read(toBeWritten.A, true);
+				case "LW":
+					value = (int) ((Short)dataCache.read(toBeWritten.A, true));
 					break;
 				case "ADD": 
 				case "ADDI":
@@ -433,6 +435,7 @@ public class CPU {
 				}
 				ROB.getData()[toBeWritten.Dest].value=value;
 				ROB.getData()[toBeWritten.Dest].ready=true;
+				
 				 
 			}
 			//execution stage
@@ -529,7 +532,7 @@ public class CPU {
 				System.out.println("I"+reservationStation[instructionIssued[0]][issuePos].instrcutionIndex+" issuing in "+	reservationStation[instructionIssued[0]][issuePos].op);
 				
 			}
-			System.out.println(Arrays.toString(regFile));
+			
 			stall.nextLine();
 			cycles++;
 			
